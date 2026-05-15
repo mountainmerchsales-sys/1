@@ -9,5 +9,10 @@
   },
   "enabledPlugins": {
     "shopify-ai-toolkit@claude-plugins-official": true
+  },
+  "env": {
+    "SHOPIFY_STORE": "${SHOPIFY_STORE}",
+    "SHOPIFY_ACCESS_TOKEN": "${SHOPIFY_ACCESS_TOKEN}",
+    "SHOPIFY_CLI_PARTNERS_TOKEN": "${SHOPIFY_CLI_PARTNERS_TOKEN}"
   }
 }
