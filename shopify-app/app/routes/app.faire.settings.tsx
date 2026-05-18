@@ -72,7 +72,7 @@ export default function FaireSettings() {
               <BlockStack gap="400">
                 <Text as="h2" variant="headingMd">Faire API Connection</Text>
                 <Text as="p" variant="bodyMd" tone="subdued">
-                  Generate an API token in your Faire brand portal under Settings → Developer → API Tokens.
+                  Get your app token from the Faire developer portal. It starts with <strong>apa_</strong>.
                 </Text>
 
                 {connected ? (
@@ -95,7 +95,7 @@ export default function FaireSettings() {
                           name="accessToken"
                           type="password"
                           autoComplete="off"
-                          placeholder="tk_live_..."
+                          placeholder="apa_..."
                         />
                         <Button submit loading={saving} variant="primary">Update token</Button>
                       </BlockStack>
@@ -109,7 +109,7 @@ export default function FaireSettings() {
                         name="accessToken"
                         type="password"
                         autoComplete="off"
-                        placeholder="tk_live_..."
+                        placeholder="apa_..."
                       />
                       <Button submit loading={saving} variant="primary">Connect to Faire</Button>
                     </BlockStack>

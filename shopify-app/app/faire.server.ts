@@ -28,6 +28,7 @@ async function faireRequest<T>(
     ...options,
     headers: {
       "X-FAIRE-ACCESS-TOKEN": accessToken,
+      "X-FAIRE-ACCESS-TOKEN-TYPE": "APP_TOKEN",
       "Content-Type": "application/json",
       ...(options.headers ?? {}),
     },
