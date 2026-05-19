@@ -135,11 +135,7 @@ async function main() {
       for (const { node: product } of edges) {
         for (const { node: variant } of product.variants.edges) {
           const { inventoryItem } = variant;
-          if (
-            inventoryItem &&
-            inventoryItem.requiresShipping &&
-            !inventoryItem.tracked
-          ) {
+          if (inventoryItem && !inventoryItem.tracked) {
             inventoryToActivate.push({
               id: inventoryItem.id,
               sku: variant.sku,
