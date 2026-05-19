@@ -11,8 +11,6 @@
     "shopify-ai-toolkit@claude-plugins-official": true
   },
   "env": {
-    "SHOPIFY_STORE": "${SHOPIFY_STORE}",
-    "SHOPIFY_ACCESS_TOKEN": "${SHOPIFY_ACCESS_TOKEN}",
-    "SHOPIFY_CLI_PARTNERS_TOKEN": "${SHOPIFY_CLI_PARTNERS_TOKEN}"
+    "SHOPIFY_STORE": "9d14be-73.myshopify.com"
   }
 }

@@ -9,16 +9,19 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Load environment variables
-dotenv.config({ path: path.join(__dirname, '../.env') });
+const result = dotenv.config({ path: path.join(__dirname, '../.env') });
+if (result.error && result.error.code !== 'ENOENT') {
+  console.error('Error loading .env:', result.error);
+}
 
 const STORE = process.env.SHOPIFY_STORE;
 const ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
 const BATCH_SIZE = 25; // GraphQL batch size
 
 if (!STORE || !ACCESS_TOKEN) {
-  console.error(
-    'Error: SHOPIFY_STORE and SHOPIFY_ACCESS_TOKEN must be set in .env'
-  );
+  console.error('Error: SHOPIFY_STORE and SHOPIFY_ACCESS_TOKEN must be set in .env');
+  console.error('STORE:', STORE);
+  console.error('ACCESS_TOKEN:', ACCESS_TOKEN ? 'set' : 'not set');
   process.exit(1);
 }
 
