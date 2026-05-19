@@ -83,7 +83,7 @@ async function activateInventoryItems(inventoryItemIds) {
   const mutations = inventoryItemIds
     .map(
       (id, idx) => `
-    item${idx}: inventoryItemUpdate(input: { id: "${id}", tracked: true }) {
+    item${idx}: inventoryItemUpdate(id: "${id}", input: { tracked: true }) {
       inventoryItem {
         id
         tracked
