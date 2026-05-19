@@ -16,7 +16,7 @@ if (result.error && result.error.code !== 'ENOENT') {
 
 const STORE = process.env.SHOPIFY_STORE;
 const ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
-const QUANTITY = 999;
+const QUANTITY = 9999;
 const BATCH_SIZE = 10; // Inventory adjustments in parallel
 
 if (!STORE || !ACCESS_TOKEN) {
