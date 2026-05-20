@@ -1,39 +1,115 @@
-import { promises as fs } from "node:fs";
-import path from "node:path";
 import sharp from "sharp";
 import { MOCKUP_LAYOUT } from "./mockup-layout";
 
-const MOCKUPS_ROOT = path.join(process.cwd(), "mockups", "gildan-64000");
-const IMAGE_EXTS = new Set([".png", ".jpg", ".jpeg", ".webp"]);
+type AdminGraphql = {
+  graphql: (
+    query: string,
+    options?: { variables?: Record<string, unknown> },
+  ) => Promise<Response>;
+};
 
 export type MockupBackground = {
   slug: string;
   displayName: string;
-  filePath: string;
+  imageUrl: string;
 };
 
-export async function listBackgrounds(): Promise<MockupBackground[]> {
-  let entries: string[];
-  try {
-    entries = await fs.readdir(MOCKUPS_ROOT);
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === "ENOENT") return [];
-    throw err;
-  }
+// Files should be named "Tee Mockups - {Color Name}.jpg" in Shopify Files
+const FILE_SEARCH_TERM = "Tee Mockups";
+const FILE_SEPARATOR = " - ";
+
+export async function listBackgrounds(
+  admin: AdminGraphql,
+): Promise<MockupBackground[]> {
+  const res = await admin.graphql(
+    `#graphql
+      query getMockupFiles($query: String!) {
+        files(first: 250, query: $query) {
+          edges {
+            node {
+              alt
+              ... on MediaImage {
+                id
+                image { url }
+              }
+              ... on GenericFile {
+                id
+                url
+              }
+            }
+          }
+        }
+      }`,
+    { variables: { query: `filename:${FILE_SEARCH_TERM}` } },
+  );
+
+  const json = (await res.json()) as {
+    data?: {
+      files?: {
+        edges?: {
+          node: {
+            alt?: string | null;
+            image?: { url: string };
+            url?: string;
+          };
+        }[];
+      };
+    };
+  };
 
   const backgrounds: MockupBackground[] = [];
-  for (const name of entries) {
-    const ext = path.extname(name).toLowerCase();
-    if (!IMAGE_EXTS.has(ext)) continue;
-    const slug = path.basename(name, ext);
+  for (const edge of json.data?.files?.edges ?? []) {
+    const imageUrl = edge.node.image?.url ?? edge.node.url ?? "";
+    if (!imageUrl) continue;
+
+    // Prefer alt text (Shopify often sets this to the original filename minus extension)
+    // Fall back to parsing the CDN URL path
+    const colorName =
+      extractColorFromAlt(edge.node.alt ?? "") ??
+      extractColorFromUrl(imageUrl);
+
+    if (!colorName) continue;
+    const slug = colorNameToSlug(colorName);
     backgrounds.push({
       slug,
-      displayName: slugToDisplayName(slug),
-      filePath: path.join(MOCKUPS_ROOT, name),
+      displayName: colorName,
+      imageUrl,
     });
   }
+
   backgrounds.sort((a, b) => a.displayName.localeCompare(b.displayName));
   return backgrounds;
+}
+
+function extractColorFromAlt(alt: string): string | null {
+  // alt: "Tee Mockups - Heather indigo" or "Tee Mockups - Heather indigo.jpg"
+  const cleaned = alt.replace(/\.[^.]+$/, "").trim();
+  const idx = cleaned.indexOf(FILE_SEPARATOR);
+  if (idx === -1) return null;
+  const color = cleaned.slice(idx + FILE_SEPARATOR.length).trim();
+  return color || null;
+}
+
+function extractColorFromUrl(imageUrl: string): string | null {
+  try {
+    const urlFilename = new URL(imageUrl).pathname.split("/").pop() ?? "";
+    // e.g. "Tee_Mockups_-_Heather_indigo_abc12345.jpg"
+    const bare = urlFilename.split("?")[0].replace(/\.[^.]+$/, "");
+    // Replace underscores with spaces
+    const withSpaces = bare.replace(/_/g, " ");
+    // Strip trailing Shopify hash: a short lowercase alphanumeric segment
+    const dehashed = withSpaces.replace(/\s+[0-9a-f]{6,16}$/i, "").trim();
+    const idx = dehashed.indexOf(FILE_SEPARATOR);
+    if (idx === -1) return null;
+    const color = dehashed.slice(idx + FILE_SEPARATOR.length).trim();
+    return color || null;
+  } catch {
+    return null;
+  }
+}
+
+function colorNameToSlug(colorName: string): string {
+  return colorName.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
 }
 
 export function slugToDisplayName(slug: string): string {
@@ -48,7 +124,15 @@ export async function composeMockup(
   designBuffer: Buffer,
   background: MockupBackground,
 ): Promise<Buffer> {
-  const bg = sharp(background.filePath);
+  const bgRes = await fetch(background.imageUrl);
+  if (!bgRes.ok) {
+    throw new Error(
+      `Failed to fetch background ${background.slug}: ${bgRes.status}`,
+    );
+  }
+  const bgBuffer = Buffer.from(await bgRes.arrayBuffer());
+
+  const bg = sharp(bgBuffer);
   const bgMeta = await bg.metadata();
   if (!bgMeta.width || !bgMeta.height) {
     throw new Error(`Background ${background.slug} has no dimensions`);
@@ -65,21 +149,13 @@ export async function composeMockup(
   const designW = resizedDesign.info.width;
   const designH = resizedDesign.info.height;
 
-  const centerX = Math.round(
-    bgMeta.width * MOCKUP_LAYOUT.designCenterXFraction,
-  );
-  const centerY = Math.round(
-    bgMeta.height * MOCKUP_LAYOUT.designCenterYFraction,
-  );
+  const centerX = Math.round(bgMeta.width * MOCKUP_LAYOUT.designCenterXFraction);
+  const centerY = Math.round(bgMeta.height * MOCKUP_LAYOUT.designCenterYFraction);
   const left = Math.max(0, centerX - Math.round(designW / 2));
   const top = Math.max(0, centerY - Math.round(designH / 2));
 
-  return sharp(background.filePath)
+  return sharp(bgBuffer)
     .composite([{ input: resizedDesign.data, left, top }])
     .jpeg({ quality: 92 })
     .toBuffer();
-}
-
-export function normalizeColorName(value: string): string {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }

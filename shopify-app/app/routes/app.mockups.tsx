@@ -5,15 +5,18 @@ import {
   unstable_createMemoryUploadHandler,
   unstable_parseMultipartFormData,
 } from "@remix-run/node";
+import { json } from "@remix-run/node";
 import { useFetcher, useLoaderData } from "@remix-run/react";
 import {
   BlockStack,
   Banner,
   Button,
   Card,
+  CalloutCard,
   DropZone,
   InlineStack,
   Layout,
+  Link,
   Page,
   Text,
   Thumbnail,
@@ -32,14 +35,14 @@ import {
 } from "../lib/shopify-media.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  await authenticate.admin(request);
-  const backgrounds = await listBackgrounds();
-  return {
+  const { admin } = await authenticate.admin(request);
+  const backgrounds = await listBackgrounds(admin);
+  return json({
     backgrounds: backgrounds.map((b) => ({
       slug: b.slug,
       displayName: b.displayName,
     })),
-  };
+  });
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -53,21 +56,21 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const productId = String(form.get("productId") ?? "");
   const designFile = form.get("design");
   if (!productId) {
-    return { ok: false as const, error: "Pick a product first." };
+    return json({ ok: false as const, error: "Pick a product first." });
   }
   if (!(designFile instanceof File)) {
-    return { ok: false as const, error: "Upload a design file." };
+    return json({ ok: false as const, error: "Upload a design file." });
   }
 
   const designBuffer = Buffer.from(await designFile.arrayBuffer());
+  const backgrounds = await listBackgrounds(admin);
 
-  const backgrounds = await listBackgrounds();
   if (backgrounds.length === 0) {
-    return {
+    return json({
       ok: false as const,
       error:
-        "No background images found. Drop PNGs into shopify-app/mockups/gildan-64000/.",
-    };
+        'No backgrounds found. Upload JPEGs named "gildan-64000-black.jpg", "gildan-64000-sport-grey.jpg", etc. to Shopify Admin → Content → Files.',
+    });
   }
 
   const baseName =
@@ -105,12 +108,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     attached = result.mediaCount;
   }
 
-  return {
+  return json({
     ok: true as const,
     attached,
     totalBackgrounds: backgrounds.length,
     failures,
-  };
+  });
 };
 
 type SelectedProduct = { id: string; title: string; image?: string };
@@ -170,6 +173,39 @@ export default function MockupsPage() {
     <Page>
       <TitleBar title="Mockup generator" />
       <BlockStack gap="500">
+        {backgrounds.length === 0 && (
+          <CalloutCard
+            title="No Gildan 64000 backgrounds found"
+            illustration=""
+            primaryAction={{
+              content: "Open Shopify Files",
+              url: "shopify:admin/content/files",
+              external: false,
+            }}
+          >
+            <Text as="p" variant="bodyMd">
+              Upload your background JPEGs to{" "}
+              <Link url="shopify:admin/content/files">
+                Shopify Admin → Content → Files
+              </Link>{" "}
+              using this naming pattern:
+            </Text>
+            <div style={{ marginTop: 8 }}>
+              <code>gildan-64000-black.jpg</code>
+              <br />
+              <code>gildan-64000-white.jpg</code>
+              <br />
+              <code>gildan-64000-sport-grey.jpg</code>
+              <br />
+              <code>gildan-64000-navy.jpg</code>
+              <br />
+              <Text as="span" variant="bodySm" tone="subdued">
+                …and so on for each color
+              </Text>
+            </div>
+          </CalloutCard>
+        )}
+
         <Layout>
           <Layout.Section>
             <Card>
@@ -199,7 +235,7 @@ export default function MockupsPage() {
               </BlockStack>
             </Card>
 
-            <div style={{ height: 16 }} />
+            <div style={{ height: "16px" }} />
 
             <Card>
               <BlockStack gap="400">
@@ -207,9 +243,8 @@ export default function MockupsPage() {
                   2. Upload the design
                 </Text>
                 <Text as="p" variant="bodyMd" tone="subdued">
-                  Use a transparent PNG sized for print (e.g. 4500×5400 at
-                  300dpi). It will be scaled and centered on each color
-                  background.
+                  Use a transparent PNG. It will be scaled and centered on each
+                  color background.
                 </Text>
                 <DropZone
                   accept="image/png,image/jpeg,image/webp"
@@ -239,26 +274,18 @@ export default function MockupsPage() {
               </BlockStack>
             </Card>
 
-            <div style={{ height: 16 }} />
+            <div style={{ height: "16px" }} />
 
             <Card>
               <BlockStack gap="400">
                 <Text as="h2" variant="headingMd">
                   3. Generate and upload
                 </Text>
-                {backgrounds.length === 0 ? (
-                  <Banner tone="warning">
-                    No background images found in{" "}
-                    <code>shopify-app/mockups/gildan-64000/</code>. Add PNGs
-                    there (one per color) and reload this page.
-                  </Banner>
-                ) : (
-                  <Text as="p" variant="bodyMd">
-                    {backgrounds.length} color background
-                    {backgrounds.length === 1 ? "" : "s"} loaded. One mockup
-                    will be generated for each.
-                  </Text>
-                )}
+                <Text as="p" variant="bodyMd">
+                  {backgrounds.length > 0
+                    ? `${backgrounds.length} color background${backgrounds.length === 1 ? "" : "s"} loaded. One mockup will be generated for each.`
+                    : "No backgrounds loaded yet — see instructions above."}
+                </Text>
                 <InlineStack>
                   <Button
                     variant="primary"
@@ -282,7 +309,8 @@ export default function MockupsPage() {
                     {result.failures.length > 0 && (
                       <>
                         {" "}
-                        Failed: {result.failures.map((f) => f.slug).join(", ")}.
+                        Failed colors:{" "}
+                        {result.failures.map((f) => f.slug).join(", ")}.
                       </>
                     )}
                   </Banner>
@@ -299,6 +327,10 @@ export default function MockupsPage() {
               <BlockStack gap="200">
                 <Text as="h3" variant="headingMd">
                   Detected colors
+                </Text>
+                <Text as="p" variant="bodySm" tone="subdued">
+                  From Shopify Files — files named{" "}
+                  <code>gildan-64000-*.jpg</code>
                 </Text>
                 {backgrounds.length === 0 ? (
                   <Text as="p" variant="bodyMd" tone="subdued">
