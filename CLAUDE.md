@@ -16,7 +16,8 @@ All development happens on `claude/shopify-mockup-generator-rq2JT`.
 - `shopify-app/app/lib/shopify-media.server.ts` — `stagedUploadsCreate` +
   `productCreateMedia` helpers
 - `shopify-app/app/lib/mockup-layout.ts` — placement constants
-  (32% width, centered horizontally, vertical center at 38% from top)
+  (42% width, centered horizontally, vertical center at 50% from top —
+  tuned 2026-05-21 to match a Printify-style reference the user shared)
 
 ## Backgrounds — already in Shopify Files
 User has uploaded 58 clean Gildan 64000 backgrounds to Shopify Admin → Content → Files.
