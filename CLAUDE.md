@@ -45,3 +45,14 @@ Pair light backgrounds (#d7be82, #ffffff) with black or #400406 text.
 ## Repo Layout (this repo)
 - `/shopify-app` — Shopify Remix app template
 - `/marketing/email-templates` — Klaviyo email HTML (source of truth before upload)
+
+## Active Discount Codes
+| Code | Offer | Audience | Active Window (ET) | Shopify ID | Notes |
+|------|-------|----------|--------------------|------------|-------|
+| `PSMD202625` | 25% off entire order | All customers | Fri May 22, 2026 00:00 → Mon May 25, 2026 23:59 | `gid://shopify/DiscountCodeNode/4946810568872` | Insider Memorial Day Weekend campaign. Auto-apply URL: `https://parksapparel.com/discount/PSMD202625` |
+
+## Campaign Assets
+- **Insider Memorial Day Weekend 2026** (code `PSMD202625`)
+  - Klaviyo template: `WPGqrx` — https://www.klaviyo.com/email-editor/WPGqrx/edit
+  - Source HTML: `marketing/email-templates/insider-memorial-day-2026.html`
+  - Planned send: Fri May 22, 2026 morning ET, all subscribers
